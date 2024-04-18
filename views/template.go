@@ -3,9 +3,26 @@ package views
 import (
 	"fmt"
 	"html/template"
+	"io/fs"
 	"log"
 	"net/http"
 )
+
+func Must(t Template, err error) Template {
+	if err != nil {
+		panic(err)
+	}
+	return t
+}
+
+func ParseFS(fs fs.FS, pattern ...string) (Template, error) {
+	tpl, err := template.ParseFS(fs, pattern...)
+	if err != nil {
+		log.Printf("Error parsing template: %v", err)
+		return Template{}, fmt.Errorf("internal error parsing template %w", err)
+	}
+	return Template{htmlTpl: tpl}, nil
+}
 
 func Parse(filepath string) (Template, error) {
 	tpl, err := template.ParseFiles(filepath)
@@ -22,7 +39,7 @@ type Template struct {
 
 func (t Template) Execute(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-type", "text/html; charset=utf-8")
-	err := t.htmlTpl.Execute(w, nil)
+	err := t.htmlTpl.Execute(w, data)
 	if err != nil {
 		log.Printf("Error executing template: %v", err)
 		http.Error(w, "There was an internal error executing the template.", http.StatusInternalServerError)
